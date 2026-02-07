@@ -1,114 +1,223 @@
 'use client';
 
 import { useState } from 'react';
-import { fruits } from '@/wordlist/fruits';
-import { meats } from '@/wordlist/meats';
-import { dairy } from '@/wordlist/dairy';
-import { clothes } from '@/wordlist/clothes';
-import { colors } from '@/wordlist/colors';
-import { materials } from '@/wordlist/materials';
 
-type WordItem = {
-	image: string;
-	english: string;
-	spanish: string;
-};
+type WordItem = Record<string, string>;
 
 type Wordlist = {
 	name: string;
 	words: WordItem[];
 };
 
-const wordlists: Wordlist[] = [
-	{ name: 'Fruits', words: fruits },
-	{ name: 'Meats', words: meats },
-	{ name: 'Dairy', words: dairy },
-	{ name: 'Clothes', words: clothes },
-	{ name: 'Colors', words: colors },
-	{ name: 'Materials', words: materials }
-];
+type LanguageData = {
+	flag: string;
+	translationKey: string;
+	wordlists: Wordlist[];
+};
+
+const languageFlags: Record<string, string> = {
+	es: '🇪🇸',
+	de: '🇩🇪',
+	fr: '🇫🇷'
+};
+
+function loadAllLanguages(): Record<string, LanguageData> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const ctx = (require as any).context('../wordlist', true, /^\.\/[^/]+\/(?!index)[^/]+\.ts$/);
+	const languages: Record<string, LanguageData> = {};
+
+	for (const key of ctx.keys() as string[]) {
+		const [, lang, file] = key.match(/^\.\/([^/]+)\/([^/]+)\.ts$/) ?? [];
+		if (!lang || !file) continue;
+
+		const mod = ctx(key);
+		const words: WordItem[] = mod[Object.keys(mod)[0]];
+		const name = file.charAt(0).toUpperCase() + file.slice(1);
+
+		if (!languages[lang]) {
+			const translationKey =
+				Object.keys(words[0] ?? {}).find((k) => k !== 'image' && k !== 'english') ?? '';
+			languages[lang] = {
+				flag: languageFlags[lang] ?? '🏳️',
+				translationKey,
+				wordlists: []
+			};
+		}
+
+		languages[lang].wordlists.push({ name, words });
+	}
+
+	for (const lang of Object.values(languages)) {
+		lang.wordlists.sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	return languages;
+}
+
+const allLanguages = loadAllLanguages();
+const languageCodes = Object.keys(allLanguages).sort();
 
 export default function Home() {
+	const [language, setLanguage] = useState(languageCodes[0]);
 	const [selectedList, setSelectedList] = useState(0);
 	const [currentCard, setCurrentCard] = useState(0);
-	const [showSpanish, setShowSpanish] = useState(false);
+	const [showTranslation, setShowTranslation] = useState(false);
+	const [shuffledLists, setShuffledLists] = useState<Record<string, Wordlist[]>>({});
 
-	const currentWords = wordlists[selectedList].words;
-	const card = currentWords[currentCard];
+	const langData = allLanguages[language];
+	const wordlists = shuffledLists[language] ?? langData?.wordlists ?? [];
+	const currentList = wordlists[selectedList];
+	const currentWords = currentList?.words ?? [];
+	const hasWords = currentWords.length > 0;
+	const card = hasWords ? currentWords[currentCard] : null;
+	const translationKey = langData?.translationKey ?? '';
 
 	const handleCardClick = () => {
-		setShowSpanish(!showSpanish);
+		if (!hasWords) return;
+		setShowTranslation(!showTranslation);
 	};
 
 	const nextCard = () => {
-		setShowSpanish(false);
+		if (!hasWords) return;
+		setShowTranslation(false);
 		setCurrentCard((prev) => (prev + 1) % currentWords.length);
 	};
 
 	const prevCard = () => {
-		setShowSpanish(false);
+		if (!hasWords) return;
+		setShowTranslation(false);
 		setCurrentCard((prev) => (prev - 1 + currentWords.length) % currentWords.length);
 	};
 
 	const handleListChange = (index: number) => {
 		setSelectedList(index);
 		setCurrentCard(0);
-		setShowSpanish(false);
+		setShowTranslation(false);
+	};
+
+	const handleLanguageChange = (nextLanguage: string) => {
+		setLanguage(nextLanguage);
+		setSelectedList(0);
+		setCurrentCard(0);
+		setShowTranslation(false);
+	};
+
+	const shuffleCards = () => {
+		if (!currentList) return;
+		const shuffled = [...currentWords].sort(() => Math.random() - 0.5);
+		setShuffledLists((prev) => ({
+			...prev,
+			[language]: wordlists.map((list, i) => (i === selectedList ? { ...list, words: shuffled } : list))
+		}));
+		setCurrentCard(0);
+		setShowTranslation(false);
 	};
 
 	return (
-		<div className='flex min-h-screen bg-zinc-900'>
+		<div className='flex min-h-screen bg-[#0a0a0a]'>
 			{/* Sidebar */}
-			<aside className='w-64 bg-zinc-950 border-r border-zinc-800 p-6'>
-				<h2 className='text-xl font-bold text-white mb-6'>Wordlists</h2>
-				<ul className='space-y-2'>
-					{wordlists.map((list, index) => (
-						<li key={index}>
-							<button
-								onClick={() => handleListChange(index)}
-								className={`w-full text-left px-4 py-2 rounded ${
-									selectedList === index
-										? 'bg-zinc-700 text-white'
-										: 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
-								}`}
+			<aside className='w-60 bg-[#111] border-r border-[#333] p-5 flex flex-col'>
+				<div>
+					<div className='flex items-center justify-between mb-4'>
+						<span className='text-[11px] uppercase tracking-[2px] text-[#666]'>Wordlists</span>
+						<button
+							onClick={shuffleCards}
+							className='p-1 text-[#555] hover:text-[#e0e0e0] disabled:opacity-30'
+							disabled={!hasWords}
+							aria-label='Shuffle cards'
+							title='Shuffle cards'
+						>
+							<svg
+								xmlns='http://www.w3.org/2000/svg'
+								width='14'
+								height='14'
+								viewBox='0 0 24 24'
+								fill='none'
+								stroke='currentColor'
+								strokeWidth='2'
+								strokeLinecap='round'
+								strokeLinejoin='round'
 							>
-								{list.name}
+								<path d='M16 3h5v5' />
+								<path d='M4 20 21 3' />
+								<path d='M21 16v5h-5' />
+								<path d='M15 15 21 21' />
+								<path d='M4 4l5 5' />
+							</svg>
+						</button>
+					</div>
+					<ul className='space-y-0.5'>
+						{wordlists.map((list, index) => (
+							<li key={index}>
+								<button
+									onClick={() => handleListChange(index)}
+									className={`w-full text-left px-3 py-2 text-[13px] ${
+										selectedList === index
+											? 'bg-[#1a1a1a] text-[#e0e0e0] border-l-2 border-[#555]'
+											: 'text-[#888] hover:bg-[#151515] hover:text-[#e0e0e0] border-l-2 border-transparent'
+									}`}
+								>
+									{list.name}
+								</button>
+							</li>
+						))}
+					</ul>
+				</div>
+
+				<div className='mt-auto pt-5 border-t border-[#222]'>
+					<span className='text-[11px] uppercase tracking-[2px] text-[#666]'>Language</span>
+					<div className='mt-3 flex gap-2 flex-wrap'>
+						{languageCodes.map((code) => (
+							<button
+								key={code}
+								onClick={() => handleLanguageChange(code)}
+								className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 border text-[13px] ${
+									language === code
+										? 'bg-[#1a1a1a] text-[#e0e0e0] border-[#555]'
+										: 'bg-[#0d0d0d] text-[#888] border-[#333] hover:bg-[#151515] hover:text-[#e0e0e0]'
+								}`}
+								aria-pressed={language === code}
+							>
+								<span aria-hidden='true'>{allLanguages[code].flag}</span>
+								<span>{code.toUpperCase()}</span>
 							</button>
-						</li>
-					))}
-				</ul>
+						))}
+					</div>
+				</div>
 			</aside>
 
 			{/* Main Content */}
 			<main className='flex-1 flex flex-col items-center justify-center p-8'>
 				<div className='text-center mb-8'>
-					<h1 className='text-2xl font-bold text-white mb-2'>{wordlists[selectedList].name}</h1>
-					<p className='text-zinc-400'>
-						{currentCard + 1} / {currentWords.length}
+					<h1 className='text-[15px] text-[#e0e0e0] mb-1'>{currentList?.name ?? 'Loading...'}</h1>
+					<p className='text-[#555] text-[12px]'>
+						{hasWords ? currentCard + 1 : 0} / {currentWords.length}
 					</p>
 				</div>
 
 				{/* Flashcard */}
 				<div
 					onClick={handleCardClick}
-					className='w-96 h-64 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center cursor-pointer hover:bg-zinc-750 mb-8'
+					className='w-96 h-64 bg-[#111] border border-[#333] flex items-center justify-center cursor-pointer hover:bg-[#151515] hover:border-[#444] mb-8 select-none'
 				>
-					<p className='text-3xl font-semibold text-white'>
-						{showSpanish ? card.spanish : card.english}
+					<p className='text-2xl text-[#e0e0e0]'>
+						{card ? (showTranslation ? card[translationKey] : card.english) : '...'}
 					</p>
 				</div>
 
 				{/* Navigation Buttons */}
-				<div className='flex gap-4'>
+				<div className='flex gap-3'>
 					<button
 						onClick={prevCard}
-						className='px-6 py-3 bg-zinc-800 text-white rounded hover:bg-zinc-700 border border-zinc-700'
+						className='px-4 py-2.5 bg-[#1a1a1a] text-[#e0e0e0] border border-[#333] hover:bg-[#252525] hover:border-[#444] disabled:opacity-30 text-[13px]'
+						disabled={!hasWords}
 					>
 						Previous
 					</button>
 					<button
 						onClick={nextCard}
-						className='px-6 py-3 bg-zinc-800 text-white rounded hover:bg-zinc-700 border border-zinc-700'
+						className='px-4 py-2.5 bg-[#1a1a1a] text-[#e0e0e0] border border-[#333] hover:bg-[#252525] hover:border-[#444] disabled:opacity-30 text-[13px]'
+						disabled={!hasWords}
 					>
 						Next
 					</button>

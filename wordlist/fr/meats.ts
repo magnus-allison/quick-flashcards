@@ -2,116 +2,106 @@ export const meats = [
 	{
 		image: '',
 		english: 'Meat',
-		spanish: 'La carne'
+		french: 'La viande'
 	},
 	{
 		image: '',
 		english: 'Chicken',
-		spanish: 'El pollo'
+		french: 'Le poulet'
 	},
 	{
 		image: '',
 		english: 'Beef',
-		spanish: 'La res'
+		french: 'Le bœuf'
 	},
 	{
 		image: '',
 		english: 'Pork',
-		spanish: 'El cerdo'
+		french: 'Le porc'
 	},
 	{
 		image: '',
 		english: 'Fish',
-		spanish: 'El pescado'
+		french: 'Le poisson'
 	},
 	{
 		image: '',
 		english: 'Turkey',
-		spanish: 'El pavo'
+		french: 'La dinde'
 	},
 	{
 		image: '',
 		english: 'Lamb',
-		spanish: 'El cordero'
+		french: 'L’agneau'
 	},
 	{
 		image: '',
 		english: 'Goat',
-		spanish: 'La cabra'
-	},
-	{
-		image: '',
-		english: 'Goat',
-		spanish: 'El chivo'
+		french: 'La chèvre'
 	},
 	{
 		image: '',
 		english: 'Venison',
-		spanish: 'El venado'
+		french: 'Le gibier'
 	},
 	{
 		image: '',
 		english: 'Rabbit',
-		spanish: 'El conejo'
+		french: 'Le lapin'
 	},
 	{
 		image: '',
 		english: 'Duck',
-		spanish: 'El pato'
+		french: 'Le canard'
 	},
 	{
 		image: '',
 		english: 'Ground meat',
-		spanish: 'La carne molida'
+		french: 'La viande hachée'
 	},
 	{
 		image: '',
 		english: 'Grilled beef',
-		spanish: 'La carne asada'
+		french: 'Le bœuf grillé'
 	},
 	{
 		image: '',
 		english: 'Barbecue',
-		spanish: 'La barbacoa'
+		french: 'Le barbecue'
 	},
 	{
 		image: '',
 		english: 'Chorizo sausage',
-		spanish: 'El chorizo'
+		french: 'Le chorizo'
 	},
 	{
 		image: '',
 		english: 'Longaniza sausage',
-		spanish: 'La longaniza'
+		french: 'La longanisse'
 	},
 	{
 		image: '',
 		english: 'Ham',
-		spanish: 'El jamón'
+		french: 'Le jambon'
 	},
 	{
 		image: '',
 		english: 'Bacon',
-		spanish: 'El tocino'
+		french: 'Le lard'
 	},
 	{
 		image: '',
 		english: 'Ribs',
-		spanish: 'Las costillas'
-	},
-	{
-		image: '',
-		english: 'Birria (stewed meat, usually goat or beef)',
-		spanish: 'La birria'
+		french: 'Les côtes'
 	},
 	{
 		image: '',
 		english: 'Dried shredded beef',
-		spanish: 'El machaca'
+		french: 'Le bœuf séché effiloché'
 	},
 	{
 		image: '',
 		english: 'Braised pork',
-		spanish: 'La carnitas'
+		french: 'Le porc braisé'
 	}
 ];
