@@ -63,21 +63,72 @@ function loadAllLanguages(): Record<string, LanguageData> {
 
 const allLanguages = loadAllLanguages();
 const languageCodes = Object.keys(allLanguages).sort();
+const defaultLanguage = languageCodes.includes('es') ? 'es' : languageCodes[0];
 
 export default function Home() {
-	const [language, setLanguage] = useState(languageCodes[0]);
+	const [language, setLanguage] = useState(defaultLanguage);
 	const [selectedList, setSelectedList] = useState(0);
 	const [currentCard, setCurrentCard] = useState(0);
 	const [showTranslation, setShowTranslation] = useState(false);
 	const [shuffledLists, setShuffledLists] = useState<Record<string, Wordlist[]>>({});
+	const [isAllCards, setIsAllCards] = useState(false);
+	const [allCardsByLanguage, setAllCardsByLanguage] = useState<Record<string, WordItem[]>>({});
+	const [shuffleEnabled, setShuffleEnabled] = useState(false);
 
 	const langData = allLanguages[language];
-	const wordlists = shuffledLists[language] ?? langData?.wordlists ?? [];
-	const currentList = wordlists[selectedList];
+	const baseWordlists = langData?.wordlists ?? [];
+	const wordlists = baseWordlists.map((list, index) => {
+		const shuffledList = shuffledLists[language]?.[index];
+		return shuffleEnabled && shuffledList ? shuffledList : list;
+	});
+	const combinedBaseWords = baseWordlists.flatMap((list) => list.words);
+	const combinedWords =
+		(shuffleEnabled ? allCardsByLanguage[language] : undefined) ?? combinedBaseWords ?? [];
+	const allCardsList: Wordlist = { name: 'All Cards', words: combinedWords };
+	const currentList = isAllCards ? allCardsList : wordlists[selectedList];
 	const currentWords = currentList?.words ?? [];
 	const hasWords = currentWords.length > 0;
 	const card = hasWords ? currentWords[currentCard] : null;
 	const translationKey = langData?.translationKey ?? '';
+	const masteryPercent = hasWords ? Math.round((currentCard / currentWords.length) * 100) : 0;
+
+	const shuffleArray = (items: WordItem[]) => [...items].sort(() => Math.random() - 0.5);
+
+	useEffect(() => {
+		if (!shuffleEnabled || baseWordlists.length === 0) return;
+		if (isAllCards) {
+			if (!allCardsByLanguage[language]) {
+				setAllCardsByLanguage((prev) => ({
+					...prev,
+					[language]: shuffleArray(combinedBaseWords)
+				}));
+			}
+			return;
+		}
+
+		const hasShuffled = Boolean(shuffledLists[language]?.[selectedList]);
+		if (!hasShuffled && baseWordlists[selectedList]) {
+			setShuffledLists((prev) => {
+				const next = { ...prev };
+				const nextLists = baseWordlists.map((list, index) => prev[language]?.[index] ?? list);
+				nextLists[selectedList] = {
+					...baseWordlists[selectedList],
+					words: shuffleArray(baseWordlists[selectedList].words)
+				};
+				next[language] = nextLists;
+				return next;
+			});
+		}
+	}, [
+		shuffleEnabled,
+		isAllCards,
+		language,
+		selectedList,
+		baseWordlists,
+		combinedBaseWords,
+		allCardsByLanguage,
+		shuffledLists
+	]);
 
 	const handleCardClick = () => {
 		if (!hasWords) return;
@@ -87,7 +138,13 @@ export default function Home() {
 	const handleKeyAction = useCallback(
 		(key: string, code: string, preventDefault: () => void) => {
 			if (!hasWords) return;
-			if (code === 'Space' || key === ' ') {
+			if (
+				code === 'Space' ||
+				key === ' ' ||
+				code === 'Enter' ||
+				code === 'NumpadEnter' ||
+				key === 'Enter'
+			) {
 				preventDefault();
 				setShowTranslation((prev) => !prev);
 				return;
@@ -120,7 +177,15 @@ export default function Home() {
 	};
 
 	const handleListChange = (index: number) => {
+		setIsAllCards(false);
 		setSelectedList(index);
+		setCurrentCard(0);
+		setShowTranslation(false);
+	};
+
+	const handleAllCards = () => {
+		setIsAllCards(true);
+		setSelectedList(-1);
 		setCurrentCard(0);
 		setShowTranslation(false);
 	};
@@ -132,15 +197,32 @@ export default function Home() {
 		setShowTranslation(false);
 	};
 
-	const shuffleCards = () => {
-		if (!currentList) return;
-		const shuffled = [...currentWords].sort(() => Math.random() - 0.5);
-		setShuffledLists((prev) => ({
-			...prev,
-			[language]: wordlists.map((list, i) => (i === selectedList ? { ...list, words: shuffled } : list))
-		}));
-		setCurrentCard(0);
-		setShowTranslation(false);
+	const toggleShuffle = () => {
+		setShuffleEnabled((prev) => {
+			const next = !prev;
+			if (next) {
+				if (isAllCards) {
+					setAllCardsByLanguage((current) => ({
+						...current,
+						[language]: shuffleArray(combinedBaseWords)
+					}));
+				} else if (baseWordlists[selectedList]) {
+					setShuffledLists((current) => {
+						const nextLists = baseWordlists.map(
+							(list, index) => current[language]?.[index] ?? list
+						);
+						nextLists[selectedList] = {
+							...baseWordlists[selectedList],
+							words: shuffleArray(baseWordlists[selectedList].words)
+						};
+						return { ...current, [language]: nextLists };
+					});
+				}
+				setCurrentCard(0);
+				setShowTranslation(false);
+			}
+			return next;
+		});
 	};
 
 	useEffect(() => {
@@ -163,15 +245,96 @@ export default function Home() {
 	}, [handleKeyAction]);
 
 	return (
-		<div className='flex min-h-screen bg-[#0a0a0a]'>
+		<div className='flex min-h-screen bg-[#070707]'>
 			{/* Sidebar */}
-			<aside className='w-60 bg-[#111] border-r border-[#333] p-5 flex flex-col'>
+			<aside className='w-60 bg-[#0b0b0b] border-r border-[#2a2a2a] p-5 flex flex-col'>
 				<div>
 					<div className='flex items-center justify-between mb-4'>
 						<span className='text-[11px] uppercase tracking-[2px] text-[#666]'>Wordlists</span>
+					</div>
+					<ul className='space-y-0.5'>
+						<li className='pb-2 mb-2 border-b border-[#1c1c1c]'>
+							<button
+								onClick={handleAllCards}
+								tabIndex={-1}
+								className={`w-full text-left px-3 py-2 text-[13px] ${
+									isAllCards
+										? 'bg-[#151515] text-[#e0e0e0] border-l-2 border-[#4a4a4a]'
+										: 'text-[#777] hover:bg-[#111] hover:text-[#e0e0e0] border-l-2 border-transparent'
+								}`}
+							>
+								All Cards
+							</button>
+						</li>
+						{wordlists.map((list, index) => (
+							<li key={index}>
+								<button
+									onClick={() => handleListChange(index)}
+									tabIndex={-1}
+									className={`w-full text-left px-3 py-2 text-[13px] ${
+										!isAllCards && selectedList === index
+											? 'bg-[#151515] text-[#e0e0e0] border-l-2 border-[#4a4a4a]'
+											: 'text-[#777] hover:bg-[#111] hover:text-[#e0e0e0] border-l-2 border-transparent'
+									}`}
+								>
+									{list.name}
+								</button>
+							</li>
+						))}
+					</ul>
+				</div>
+
+				<div className='mt-auto pt-5 border-t border-[#1c1c1c]'>
+					<span className='text-[11px] uppercase tracking-[2px] text-[#666]'>Language</span>
+					<div className='mt-3 flex gap-2 flex-wrap'>
+						{languageCodes.map((code) => (
+							<button
+								key={code}
+								onClick={() => handleLanguageChange(code)}
+								tabIndex={-1}
+								className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 border text-[13px] ${
+									language === code
+										? 'bg-[#151515] text-[#e0e0e0] border-[#4a4a4a]'
+										: 'bg-[#0b0b0b] text-[#777] border-[#2a2a2a] hover:bg-[#111] hover:text-[#e0e0e0]'
+								}`}
+								aria-pressed={language === code}
+							>
+								<span aria-hidden='true'>{allLanguages[code].flag}</span>
+								<span>{code.toUpperCase()}</span>
+							</button>
+						))}
+					</div>
+				</div>
+			</aside>
+
+			{/* Main Content */}
+			<main className='flex-1 flex flex-col items-center justify-center p-8'>
+				<div className='text-center mb-8'>
+					<h1 className='text-[15px] text-[#e0e0e0] mb-1'>{currentList?.name ?? 'Loading...'}</h1>
+					<p className='text-[#4a4a4a] text-[12px]'>
+						{hasWords ? currentCard + 1 : 0} / {currentWords.length}
+					</p>
+					<div className='mt-4 w-80'>
+						<div className='flex items-center justify-between text-[11px] uppercase tracking-[2px] text-[#4a4a4a]'>
+							<span>Progress</span>
+							<span>{masteryPercent}%</span>
+						</div>
+						<div className='mt-2 h-[6px] bg-[#0f0f0f] border border-[#232323]'>
+							<div
+								className='h-full bg-[#3ddc84] transition-all'
+								style={{ width: `${masteryPercent}%` }}
+							/>
+						</div>
+						<div className='mt-2 flex items-center justify-between text-[11px] text-[#5a5a5a]'>
+							<span>0</span>
+							<span>{currentWords.length}</span>
+						</div>
 						<button
-							onClick={shuffleCards}
-							className='p-1 text-[#555] hover:text-[#e0e0e0] disabled:opacity-30'
+							onClick={toggleShuffle}
+							tabIndex={-1}
+							className={`mt-3 p-1 hover:text-[#e0e0e0] disabled:opacity-30 ${
+								shuffleEnabled ? 'text-[#e0e0e0]' : 'text-[#4a4a4a]'
+							}`}
 							disabled={!hasWords}
 							aria-label='Shuffle cards'
 							title='Shuffle cards'
@@ -195,60 +358,13 @@ export default function Home() {
 							</svg>
 						</button>
 					</div>
-					<ul className='space-y-0.5'>
-						{wordlists.map((list, index) => (
-							<li key={index}>
-								<button
-									onClick={() => handleListChange(index)}
-									className={`w-full text-left px-3 py-2 text-[13px] ${
-										selectedList === index
-											? 'bg-[#1a1a1a] text-[#e0e0e0] border-l-2 border-[#555]'
-											: 'text-[#888] hover:bg-[#151515] hover:text-[#e0e0e0] border-l-2 border-transparent'
-									}`}
-								>
-									{list.name}
-								</button>
-							</li>
-						))}
-					</ul>
-				</div>
-
-				<div className='mt-auto pt-5 border-t border-[#222]'>
-					<span className='text-[11px] uppercase tracking-[2px] text-[#666]'>Language</span>
-					<div className='mt-3 flex gap-2 flex-wrap'>
-						{languageCodes.map((code) => (
-							<button
-								key={code}
-								onClick={() => handleLanguageChange(code)}
-								className={`flex-1 flex items-center justify-center gap-2 px-2 py-2 border text-[13px] ${
-									language === code
-										? 'bg-[#1a1a1a] text-[#e0e0e0] border-[#555]'
-										: 'bg-[#0d0d0d] text-[#888] border-[#333] hover:bg-[#151515] hover:text-[#e0e0e0]'
-								}`}
-								aria-pressed={language === code}
-							>
-								<span aria-hidden='true'>{allLanguages[code].flag}</span>
-								<span>{code.toUpperCase()}</span>
-							</button>
-						))}
-					</div>
-				</div>
-			</aside>
-
-			{/* Main Content */}
-			<main className='flex-1 flex flex-col items-center justify-center p-8'>
-				<div className='text-center mb-8'>
-					<h1 className='text-[15px] text-[#e0e0e0] mb-1'>{currentList?.name ?? 'Loading...'}</h1>
-					<p className='text-[#555] text-[12px]'>
-						{hasWords ? currentCard + 1 : 0} / {currentWords.length}
-					</p>
 				</div>
 
 				{/* Flashcard */}
 				<div
 					tabIndex={-1}
 					onClick={handleCardClick}
-					className='relative w-102 h-64 bg-[#111] border border-[#333] flex items-center justify-center cursor-pointer hover:bg-[#151515] hover:border-[#444] mb-8 select-none outline-none'
+					className='relative w-102 h-64 bg-[#0b0b0b] border border-[#2a2a2a] flex items-center justify-center cursor-pointer hover:bg-[#101010] hover:border-[#333] mb-8 select-none outline-none'
 				>
 					{showTranslation && (
 						<div className='absolute top-4 right-4 w-2.5 h-2.5 bg-[#3ddc84] rounded-full shadow-[0_0_0_2px_#111]' />
@@ -263,7 +379,7 @@ export default function Home() {
 					<button
 						onClick={prevCard}
 						tabIndex={-1}
-						className='px-4 py-2.5 bg-[#1a1a1a] text-[#e0e0e0] border border-[#333] hover:bg-[#252525] hover:border-[#444] disabled:opacity-30 text-[13px]'
+						className='px-4 py-2.5 bg-[#151515] text-[#e0e0e0] border border-[#2a2a2a] hover:bg-[#1f1f1f] hover:border-[#333] disabled:opacity-30 text-[13px] select-none outline-none'
 						disabled={!hasWords}
 					>
 						Previous
@@ -271,7 +387,7 @@ export default function Home() {
 					<button
 						onClick={nextCard}
 						tabIndex={-1}
-						className='px-4 py-2.5 bg-[#1a1a1a] text-[#e0e0e0] border border-[#333] hover:bg-[#252525] hover:border-[#444] disabled:opacity-30 text-[13px]'
+						className='px-4 py-2.5 bg-[#151515] text-[#e0e0e0] border border-[#2a2a2a] hover:bg-[#1f1f1f] hover:border-[#333] disabled:opacity-30 text-[13px] select-none outline-none'
 						disabled={!hasWords}
 					>
 						Next
