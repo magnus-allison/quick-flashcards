@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 type WordItem = Record<string, string>;
 
@@ -32,7 +32,14 @@ function loadAllLanguages(): Record<string, LanguageData> {
 
 		const mod = ctx(key);
 		const words: WordItem[] = mod[Object.keys(mod)[0]];
-		const name = file.charAt(0).toUpperCase() + file.slice(1);
+		let name = file.charAt(0).toUpperCase() + file.slice(1);
+
+		if (name.includes('_')) {
+			name = name
+				.split('_')
+				.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+				.join(' ');
+		}
 
 		if (!languages[lang]) {
 			const translationKey =
@@ -74,8 +81,31 @@ export default function Home() {
 
 	const handleCardClick = () => {
 		if (!hasWords) return;
-		setShowTranslation(!showTranslation);
+		setShowTranslation((prev) => !prev);
 	};
+
+	const handleKeyAction = useCallback(
+		(key: string, code: string, preventDefault: () => void) => {
+			if (!hasWords) return;
+			if (code === 'Space' || key === ' ') {
+				preventDefault();
+				setShowTranslation((prev) => !prev);
+				return;
+			}
+			if (code === 'ArrowRight' || key === 'ArrowRight') {
+				preventDefault();
+				setShowTranslation(false);
+				setCurrentCard((prev) => (prev + 1) % currentWords.length);
+				return;
+			}
+			if (code === 'ArrowLeft' || key === 'ArrowLeft') {
+				preventDefault();
+				setShowTranslation(false);
+				setCurrentCard((prev) => (prev - 1 + currentWords.length) % currentWords.length);
+			}
+		},
+		[hasWords, currentWords.length]
+	);
 
 	const nextCard = () => {
 		if (!hasWords) return;
@@ -112,6 +142,25 @@ export default function Home() {
 		setCurrentCard(0);
 		setShowTranslation(false);
 	};
+
+	useEffect(() => {
+		const handleKeyPress = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement | null;
+			const tagName = target?.tagName?.toLowerCase();
+			if (
+				target?.isContentEditable ||
+				tagName === 'input' ||
+				tagName === 'textarea' ||
+				tagName === 'select'
+			) {
+				return;
+			}
+			handleKeyAction(e.key, e.code, () => e.preventDefault());
+		};
+
+		document.addEventListener('keydown', handleKeyPress);
+		return () => document.removeEventListener('keydown', handleKeyPress);
+	}, [handleKeyAction]);
 
 	return (
 		<div className='flex min-h-screen bg-[#0a0a0a]'>
@@ -197,9 +246,13 @@ export default function Home() {
 
 				{/* Flashcard */}
 				<div
+					tabIndex={-1}
 					onClick={handleCardClick}
-					className='w-96 h-64 bg-[#111] border border-[#333] flex items-center justify-center cursor-pointer hover:bg-[#151515] hover:border-[#444] mb-8 select-none'
+					className='relative w-102 h-64 bg-[#111] border border-[#333] flex items-center justify-center cursor-pointer hover:bg-[#151515] hover:border-[#444] mb-8 select-none outline-none'
 				>
+					{showTranslation && (
+						<div className='absolute top-4 right-4 w-2.5 h-2.5 bg-[#3ddc84] rounded-full shadow-[0_0_0_2px_#111]' />
+					)}
 					<p className='text-2xl text-[#e0e0e0]'>
 						{card ? (showTranslation ? card[translationKey] : card.english) : '...'}
 					</p>
@@ -209,6 +262,7 @@ export default function Home() {
 				<div className='flex gap-3'>
 					<button
 						onClick={prevCard}
+						tabIndex={-1}
 						className='px-4 py-2.5 bg-[#1a1a1a] text-[#e0e0e0] border border-[#333] hover:bg-[#252525] hover:border-[#444] disabled:opacity-30 text-[13px]'
 						disabled={!hasWords}
 					>
@@ -216,6 +270,7 @@ export default function Home() {
 					</button>
 					<button
 						onClick={nextCard}
+						tabIndex={-1}
 						className='px-4 py-2.5 bg-[#1a1a1a] text-[#e0e0e0] border border-[#333] hover:bg-[#252525] hover:border-[#444] disabled:opacity-30 text-[13px]'
 						disabled={!hasWords}
 					>
