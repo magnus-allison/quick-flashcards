@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import pako from 'pako';
+import { LightbulbFilament, Shuffle, Star, Translate } from '@phosphor-icons/react';
 
 type WordItem = Record<string, string>;
 
@@ -269,30 +270,30 @@ export default function Home() {
 				code === 'Enter' ||
 				code === 'NumpadEnter' ||
 				key === 'Enter'
-				) {
-					preventDefault();
-					if (!hintEnabled) {
-						setRevealState((prev) => (prev === 'back' ? 'front' : 'back'));
-						return;
-					}
-					setRevealState((prev) => {
-						if (prev === 'front') return 'hint';
-						if (prev === 'hint') return 'back';
-						return 'front';
-					});
+			) {
+				preventDefault();
+				if (!hintEnabled) {
+					setRevealState((prev) => (prev === 'back' ? 'front' : 'back'));
 					return;
 				}
-				if (code === 'ArrowRight' || key === 'ArrowRight') {
-					preventDefault();
-					setRevealState('front');
-					setCurrentCard((prev) => (prev + 1) % currentWords.length);
-					return;
-				}
-				if (code === 'ArrowLeft' || key === 'ArrowLeft') {
-					preventDefault();
-					setRevealState('front');
-					setCurrentCard((prev) => (prev - 1 + currentWords.length) % currentWords.length);
-				}
+				setRevealState((prev) => {
+					if (prev === 'front') return 'hint';
+					if (prev === 'hint') return 'back';
+					return 'front';
+				});
+				return;
+			}
+			if (code === 'ArrowRight' || key === 'ArrowRight') {
+				preventDefault();
+				setRevealState('front');
+				setCurrentCard((prev) => (prev + 1) % currentWords.length);
+				return;
+			}
+			if (code === 'ArrowLeft' || key === 'ArrowLeft') {
+				preventDefault();
+				setRevealState('front');
+				setCurrentCard((prev) => (prev - 1 + currentWords.length) % currentWords.length);
+			}
 		},
 		[hasWords, currentWords.length, hintEnabled]
 	);
@@ -367,12 +368,12 @@ export default function Home() {
 						};
 						return { ...current, [language]: nextLists };
 					});
-					}
-					setCurrentCard(0);
-					setRevealState('front');
 				}
-				return next;
-			});
+				setCurrentCard(0);
+				setRevealState('front');
+			}
+			return next;
+		});
 	};
 
 	const toggleFavorite = () => {
@@ -430,19 +431,19 @@ export default function Home() {
 								All Cards
 							</button>
 						</li>
-							<li className='pb-2 mb-2 border-b border-[#1c1c1c]'>
-								<button
-									onClick={handleFavorites}
-									tabIndex={-1}
-									className={`w-full text-left px-3 py-2 text-[13px] ${
-										isFavorites
-											? 'bg-[#151515] text-[#e0e0e0] border-l-2 border-[#4a4a4a]'
-											: 'text-[#777] hover:bg-[#111] hover:text-[#e0e0e0] border-l-2 border-transparent'
-									}`}
-								>
-									Favourites
-								</button>
-							</li>
+						<li className='pb-2 mb-2 border-b border-[#1c1c1c]'>
+							<button
+								onClick={handleFavorites}
+								tabIndex={-1}
+								className={`w-full text-left px-3 py-2 text-[13px] ${
+									isFavorites
+										? 'bg-[#151515] text-[#e0e0e0] border-l-2 border-[#4a4a4a]'
+										: 'text-[#777] hover:bg-[#111] hover:text-[#e0e0e0] border-l-2 border-transparent'
+								}`}
+							>
+								Favourites
+							</button>
+						</li>
 						{wordlists.map((list, index) => (
 							<li key={index}>
 								<button
@@ -518,23 +519,7 @@ export default function Home() {
 									aria-label='Shuffle cards'
 									title='Shuffle cards'
 								>
-									<svg
-										xmlns='http://www.w3.org/2000/svg'
-										width='14'
-										height='14'
-										viewBox='0 0 24 24'
-										fill='none'
-										stroke='currentColor'
-										strokeWidth='2'
-										strokeLinecap='round'
-										strokeLinejoin='round'
-									>
-										<path d='M16 3h5v5' />
-										<path d='M4 20 21 3' />
-										<path d='M21 16v5h-5' />
-										<path d='M15 15 21 21' />
-										<path d='M4 4l5 5' />
-									</svg>
+									<Shuffle size={14} weight='regular' />
 								</button>
 							</Tooltip>
 							<Tooltip label='Toggle favorite'>
@@ -551,19 +536,7 @@ export default function Home() {
 									aria-label='Toggle favorite'
 									title='Toggle favorite'
 								>
-									<svg
-										xmlns='http://www.w3.org/2000/svg'
-										width='14'
-										height='14'
-										viewBox='0 0 24 24'
-										fill='none'
-										stroke='currentColor'
-										strokeWidth='2'
-										strokeLinecap='round'
-										strokeLinejoin='round'
-									>
-										<path d='M12 3l2.9 5.88 6.5.95-4.7 4.58 1.1 6.44L12 17.77 6.2 20.85l1.1-6.44L2.6 9.83l6.5-.95L12 3z' />
-									</svg>
+									<Star size={14} weight='regular' />
 								</button>
 							</Tooltip>
 							<Tooltip label='Toggle hints'>
@@ -583,21 +556,7 @@ export default function Home() {
 									aria-label='Toggle hints'
 									title='Toggle hints'
 								>
-									<svg
-										xmlns='http://www.w3.org/2000/svg'
-										width='12'
-										height='12'
-										viewBox='0 0 24 24'
-										fill='none'
-										stroke='currentColor'
-										strokeWidth='2'
-										strokeLinecap='round'
-										strokeLinejoin='round'
-									>
-										<path d='M9 18h6' />
-										<path d='M10 22h4' />
-										<path d='M12 2a7 7 0 0 0-4 12c1 .8 2 2 2 3h4c0-1 1-2.2 2-3a7 7 0 0 0-4-12z' />
-									</svg>
+									<LightbulbFilament size={12} weight='regular' />
 								</button>
 							</Tooltip>
 							<Tooltip label='Foreign first'>
@@ -611,24 +570,7 @@ export default function Home() {
 									aria-label='Toggle foreign-first'
 									title='Toggle foreign-first'
 								>
-									<svg
-										xmlns='http://www.w3.org/2000/svg'
-										width='12'
-										height='12'
-										viewBox='0 0 24 24'
-										fill='none'
-										stroke='currentColor'
-										strokeWidth='2'
-										strokeLinecap='round'
-										strokeLinejoin='round'
-									>
-										<path d='M4 7h6' />
-										<path d='M4 17h6' />
-										<path d='M14 7h6' />
-										<path d='M14 17h6' />
-										<path d='M10 5v14' />
-										<path d='M14 5v14' />
-									</svg>
+									<Translate size={12} weight='regular' />
 								</button>
 							</Tooltip>
 						</div>
