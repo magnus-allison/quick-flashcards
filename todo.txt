@@ -1,0 +1,2 @@
+add tags: property to wordlists and then I can have a dropdown on the sidebar
+for example berries, common verbs etc

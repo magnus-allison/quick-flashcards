@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import pako from 'pako';
-import { LightbulbFilament, Shuffle, Star, Translate } from '@phosphor-icons/react';
+import { LightbulbFilamentIcon, ShuffleIcon, StarIcon, TranslateIcon } from '@phosphor-icons/react';
 
 type WordItem = Record<string, string>;
 
@@ -84,6 +84,26 @@ const allLanguages = loadAllLanguages();
 const languageCodes = Object.keys(allLanguages).sort();
 const defaultLanguage = languageCodes.includes('es') ? 'es' : languageCodes[0];
 
+function shuffleArray(items: WordItem[]) {
+	return [...items].sort(() => Math.random() - 0.5);
+}
+
+function computeHintText(text: string): string {
+	const raw = text.trim();
+	if (!raw) return '';
+	const parts = raw.split(/\s+/);
+	const article = parts[0] ?? '';
+	const word = parts.slice(1).join(' ');
+	const cleaned = word.replace(/[^a-zA-Z\u00C0-\u00FF]/g, '');
+	if (!cleaned) return article ? `${article} \u2014` : '\u2014';
+	if (cleaned.length <= 2) return article ? `${article} ${cleaned}` : cleaned;
+	const first = cleaned.charAt(0);
+	const last = cleaned.charAt(cleaned.length - 1);
+	const middle = '_'.repeat(Math.max(cleaned.length - 2, 0));
+	const masked = `${first}${middle}${last}`;
+	return article ? `${article} ${masked}` : masked;
+}
+
 export default function Home() {
 	const [language, setLanguage] = useState(defaultLanguage);
 	const [selectedList, setSelectedList] = useState(0);
@@ -93,7 +113,19 @@ export default function Home() {
 	const [isAllCards, setIsAllCards] = useState(false);
 	const [isFavorites, setIsFavorites] = useState(false);
 	const [allCardsByLanguage, setAllCardsByLanguage] = useState<Record<string, WordItem[]>>({});
-	const [favoritesByLanguage, setFavoritesByLanguage] = useState<Record<string, string[]>>({});
+	const [favoritesByLanguage, setFavoritesByLanguage] = useState<Record<string, string[]>>(() => {
+		if (typeof window === 'undefined') return {};
+		const stored = window.localStorage.getItem('quick-flashcards:favorites.v1');
+		if (!stored) return {};
+		try {
+			const binary = atob(stored);
+			const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+			const json = pako.inflate(bytes, { to: 'string' }) as string;
+			return JSON.parse(json) as Record<string, string[]>;
+		} catch {
+			return {};
+		}
+	});
 	const [shuffledFavoritesByLanguage, setShuffledFavoritesByLanguage] = useState<
 		Record<string, WordItem[]>
 	>({});
@@ -103,16 +135,16 @@ export default function Home() {
 
 	const langData = allLanguages[language];
 	const translationKey = langData?.translationKey ?? '';
-	const baseWordlists = langData?.wordlists ?? [];
+	const baseWordlists = useMemo(() => langData?.wordlists ?? [], [langData]);
 	const wordlists = baseWordlists.map((list, index) => {
 		const shuffledList = shuffledLists[language]?.[index];
 		return shuffleEnabled && shuffledList ? shuffledList : list;
 	});
-	const combinedBaseWords = baseWordlists.flatMap((list) => list.words);
+	const combinedBaseWords = useMemo(() => baseWordlists.flatMap((list) => list.words), [baseWordlists]);
 	const combinedWords =
 		(shuffleEnabled ? allCardsByLanguage[language] : undefined) ?? combinedBaseWords ?? [];
 	const allCardsList: Wordlist = { name: 'All Cards', words: combinedWords };
-	const favoriteKeys = favoritesByLanguage[language] ?? [];
+	const favoriteKeys = useMemo(() => favoritesByLanguage[language] ?? [], [favoritesByLanguage, language]);
 	const favoriteKeySet = useMemo(() => new Set(favoriteKeys), [favoriteKeys]);
 	const favoriteBaseWords = useMemo(
 		() =>
@@ -134,117 +166,15 @@ export default function Home() {
 	const frontText = card ? (foreignFirst ? card[translationKey] : card.english) : '';
 	const backText = card ? (foreignFirst ? card.english : card[translationKey]) : '';
 
-	const shuffleArray = useCallback((items: WordItem[]) => [...items].sort(() => Math.random() - 0.5), []);
-	const getHintText = useCallback(() => {
-		const raw = `${backText ?? ''}`.trim();
-		if (!raw) return '';
-		const parts = raw.split(/\s+/);
-		const articleCandidates = [
-			'el',
-			'la',
-			'los',
-			'las',
-			'un',
-			'una',
-			'der',
-			'die',
-			'das',
-			'ein',
-			'eine',
-			'le',
-			'la',
-			'les',
-			'un',
-			'une'
-		];
-		const firstPart = parts[0]?.toLowerCase();
-		const hasArticle = firstPart && articleCandidates.includes(firstPart);
-		const article = hasArticle ? parts[0] : '';
-		const word = hasArticle ? parts.slice(1).join(' ') : raw;
-		const cleaned = word.replace(/[^a-zA-ZÀ-ÿ]/g, '');
-		if (!cleaned) return article ? `${article} —` : '—';
-		if (cleaned.length <= 2) return article ? `${article} ${cleaned}` : cleaned;
-		const first = cleaned.charAt(0);
-		const last = cleaned.charAt(cleaned.length - 1);
-		const middle = '_'.repeat(Math.max(cleaned.length - 2, 0));
-		const masked = `${first}${middle}${last}`;
-		return article ? `${article} ${masked}` : masked;
-	}, [backText]);
-
-	useEffect(() => {
-		if (!shuffleEnabled || baseWordlists.length === 0) return;
-		if (isAllCards) {
-			if (!allCardsByLanguage[language]) {
-				setAllCardsByLanguage((prev) => ({
-					...prev,
-					[language]: shuffleArray(combinedBaseWords)
-				}));
-			}
-			return;
-		}
-		if (isFavorites) {
-			if (!shuffledFavoritesByLanguage[language]) {
-				setShuffledFavoritesByLanguage((prev) => ({
-					...prev,
-					[language]: shuffleArray(favoriteBaseWords)
-				}));
-			}
-			return;
-		}
-
-		const hasShuffled = Boolean(shuffledLists[language]?.[selectedList]);
-		if (!hasShuffled && baseWordlists[selectedList]) {
-			setShuffledLists((prev) => {
-				const next = { ...prev };
-				const nextLists = baseWordlists.map((list, index) => prev[language]?.[index] ?? list);
-				nextLists[selectedList] = {
-					...baseWordlists[selectedList],
-					words: shuffleArray(baseWordlists[selectedList].words)
-				};
-				next[language] = nextLists;
-				return next;
-			});
-		}
-	}, [
-		shuffleEnabled,
-		isAllCards,
-		isFavorites,
-		language,
-		selectedList,
-		baseWordlists,
-		combinedBaseWords,
-		favoriteBaseWords,
-		allCardsByLanguage,
-		shuffledFavoritesByLanguage,
-		shuffledLists,
-		shuffleArray
-	]);
-
-	useEffect(() => {
-		if (!shuffleEnabled || !isFavorites) return;
-		setShuffledFavoritesByLanguage((prev) => ({
-			...prev,
-			[language]: shuffleArray(favoriteBaseWords)
-		}));
-	}, [favoriteBaseWords, isFavorites, language, shuffleArray, shuffleEnabled]);
-
-	useEffect(() => {
-		if (typeof window === 'undefined') return;
-		const stored = window.localStorage.getItem('quick-flashcards:favorites.v1');
-		if (!stored) return;
-		try {
-			const json = pako.inflate(atob(stored), { to: 'string' }) as string;
-			const parsed = JSON.parse(json) as Record<string, string[]>;
-			setFavoritesByLanguage(parsed);
-		} catch {}
-	}, []);
+	const hintText = computeHintText(backText ?? '');
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
 		try {
 			const json = JSON.stringify(favoritesByLanguage);
-			const compressed = pako.deflate(json, { to: 'string' }) as string;
-			window.localStorage.setItem('quick-flashcards:favorites.v1', btoa(compressed));
+			const compressed = pako.deflate(json);
+			const binaryStr = Array.from(compressed, (byte) => String.fromCharCode(byte)).join('');
+			window.localStorage.setItem('quick-flashcards:favorites.v1', btoa(binaryStr));
 		} catch {}
 	}, [favoritesByLanguage]);
 
@@ -260,43 +190,6 @@ export default function Home() {
 			return 'front';
 		});
 	};
-
-	const handleKeyAction = useCallback(
-		(key: string, code: string, preventDefault: () => void) => {
-			if (!hasWords) return;
-			if (
-				code === 'Space' ||
-				key === ' ' ||
-				code === 'Enter' ||
-				code === 'NumpadEnter' ||
-				key === 'Enter'
-			) {
-				preventDefault();
-				if (!hintEnabled) {
-					setRevealState((prev) => (prev === 'back' ? 'front' : 'back'));
-					return;
-				}
-				setRevealState((prev) => {
-					if (prev === 'front') return 'hint';
-					if (prev === 'hint') return 'back';
-					return 'front';
-				});
-				return;
-			}
-			if (code === 'ArrowRight' || key === 'ArrowRight') {
-				preventDefault();
-				setRevealState('front');
-				setCurrentCard((prev) => (prev + 1) % currentWords.length);
-				return;
-			}
-			if (code === 'ArrowLeft' || key === 'ArrowLeft') {
-				preventDefault();
-				setRevealState('front');
-				setCurrentCard((prev) => (prev - 1 + currentWords.length) % currentWords.length);
-			}
-		},
-		[hasWords, currentWords.length, hintEnabled]
-	);
 
 	const nextCard = () => {
 		if (!hasWords) return;
@@ -316,6 +209,16 @@ export default function Home() {
 		setSelectedList(index);
 		setCurrentCard(0);
 		setRevealState('front');
+		if (shuffleEnabled && baseWordlists[index]) {
+			setShuffledLists((prev) => {
+				const nextLists = baseWordlists.map((list, i) => prev[language]?.[i] ?? list);
+				nextLists[index] = {
+					...baseWordlists[index],
+					words: shuffleArray(baseWordlists[index].words)
+				};
+				return { ...prev, [language]: nextLists };
+			});
+		}
 	};
 
 	const handleAllCards = () => {
@@ -324,6 +227,12 @@ export default function Home() {
 		setSelectedList(-1);
 		setCurrentCard(0);
 		setRevealState('front');
+		if (shuffleEnabled) {
+			setAllCardsByLanguage((prev) => ({
+				...prev,
+				[language]: shuffleArray(combinedBaseWords)
+			}));
+		}
 	};
 
 	const handleFavorites = () => {
@@ -332,6 +241,12 @@ export default function Home() {
 		setSelectedList(-1);
 		setCurrentCard(0);
 		setRevealState('front');
+		if (shuffleEnabled) {
+			setShuffledFavoritesByLanguage((prev) => ({
+				...prev,
+				[language]: shuffleArray(favoriteBaseWords)
+			}));
+		}
 	};
 
 	const handleLanguageChange = (nextLanguage: string) => {
@@ -341,6 +256,20 @@ export default function Home() {
 		setSelectedList(0);
 		setCurrentCard(0);
 		setRevealState('front');
+		if (shuffleEnabled) {
+			const newLangData = allLanguages[nextLanguage];
+			const newBaseWordlists = newLangData?.wordlists ?? [];
+			if (newBaseWordlists[0]) {
+				setShuffledLists((prev) => {
+					const nextLists = newBaseWordlists.map((list, i) => prev[nextLanguage]?.[i] ?? list);
+					nextLists[0] = {
+						...newBaseWordlists[0],
+						words: shuffleArray(newBaseWordlists[0].words)
+					};
+					return { ...prev, [nextLanguage]: nextLists };
+				});
+			}
+		}
 	};
 
 	const toggleShuffle = () => {
@@ -379,15 +308,24 @@ export default function Home() {
 	const toggleFavorite = () => {
 		if (!card) return;
 		const key = `${card.english}||${card[translationKey] ?? ''}`;
-		setFavoritesByLanguage((prev) => {
-			const current = new Set(prev[language] ?? []);
-			if (current.has(key)) {
-				current.delete(key);
-			} else {
-				current.add(key);
-			}
-			return { ...prev, [language]: Array.from(current) };
-		});
+		const currentFavs = new Set(favoritesByLanguage[language] ?? []);
+		if (currentFavs.has(key)) {
+			currentFavs.delete(key);
+		} else {
+			currentFavs.add(key);
+		}
+		const newFavorites = Array.from(currentFavs);
+		setFavoritesByLanguage((prev) => ({ ...prev, [language]: newFavorites }));
+		if (shuffleEnabled && isFavorites) {
+			const newFavoriteKeySet = new Set(newFavorites);
+			const newFavoriteWords = combinedBaseWords.filter((item) =>
+				newFavoriteKeySet.has(`${item.english}||${item[translationKey] ?? ''}`)
+			);
+			setShuffledFavoritesByLanguage((prev) => ({
+				...prev,
+				[language]: shuffleArray(newFavoriteWords)
+			}));
+		}
 	};
 
 	useEffect(() => {
@@ -402,12 +340,42 @@ export default function Home() {
 			) {
 				return;
 			}
-			handleKeyAction(e.key, e.code, () => e.preventDefault());
+			if (!hasWords) return;
+			if (
+				e.code === 'Space' ||
+				e.key === ' ' ||
+				e.code === 'Enter' ||
+				e.code === 'NumpadEnter' ||
+				e.key === 'Enter'
+			) {
+				e.preventDefault();
+				if (!hintEnabled) {
+					setRevealState((prev) => (prev === 'back' ? 'front' : 'back'));
+					return;
+				}
+				setRevealState((prev) => {
+					if (prev === 'front') return 'hint';
+					if (prev === 'hint') return 'back';
+					return 'front';
+				});
+				return;
+			}
+			if (e.code === 'ArrowRight' || e.key === 'ArrowRight') {
+				e.preventDefault();
+				setRevealState('front');
+				setCurrentCard((prev) => (prev + 1) % currentWords.length);
+				return;
+			}
+			if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft') {
+				e.preventDefault();
+				setRevealState('front');
+				setCurrentCard((prev) => (prev - 1 + currentWords.length) % currentWords.length);
+			}
 		};
 
 		document.addEventListener('keydown', handleKeyPress);
 		return () => document.removeEventListener('keydown', handleKeyPress);
-	}, [handleKeyAction]);
+	}, [hasWords, currentWords.length, hintEnabled]);
 
 	return (
 		<div className='flex min-h-screen bg-[#070707]'>
@@ -497,7 +465,7 @@ export default function Home() {
 							<span>Progress</span>
 							<span>{masteryPercent}%</span>
 						</div>
-						<div className='mt-2 h-[6px] bg-[#0f0f0f] border border-[#232323]'>
+						<div className='mt-2 h-1.5 bg-[#0f0f0f] border border-[#232323]'>
 							<div
 								className='h-full bg-[#3ddc84] transition-all'
 								style={{ width: `${masteryPercent}%` }}
@@ -519,7 +487,7 @@ export default function Home() {
 									aria-label='Shuffle cards'
 									title='Shuffle cards'
 								>
-									<Shuffle size={14} weight='regular' />
+									<ShuffleIcon size={14} weight='regular' />
 								</button>
 							</Tooltip>
 							<Tooltip label='Toggle favorite'>
@@ -536,7 +504,7 @@ export default function Home() {
 									aria-label='Toggle favorite'
 									title='Toggle favorite'
 								>
-									<Star size={14} weight='regular' />
+									<StarIcon size={14} weight='regular' />
 								</button>
 							</Tooltip>
 							<Tooltip label='Toggle hints'>
@@ -556,7 +524,7 @@ export default function Home() {
 									aria-label='Toggle hints'
 									title='Toggle hints'
 								>
-									<LightbulbFilament size={12} weight='regular' />
+									<LightbulbFilamentIcon size={12} weight='regular' />
 								</button>
 							</Tooltip>
 							<Tooltip label='Foreign first'>
@@ -570,7 +538,7 @@ export default function Home() {
 									aria-label='Toggle foreign-first'
 									title='Toggle foreign-first'
 								>
-									<Translate size={12} weight='regular' />
+									<TranslateIcon size={12} weight='regular' />
 								</button>
 							</Tooltip>
 						</div>
@@ -590,7 +558,7 @@ export default function Home() {
 						<div className='absolute top-4 right-4 w-2.5 h-2.5 bg-[#f4a742] rounded-full shadow-[0_0_0_2px_#111]' />
 					)}
 					<p className='text-2xl text-[#e0e0e0]'>
-						{card ? (isHint ? getHintText() : isBack ? backText : frontText) : '...'}
+						{card ? (isHint ? hintText : isBack ? backText : frontText) : '...'}
 					</p>
 				</div>
 
