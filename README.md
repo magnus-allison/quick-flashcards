@@ -2,6 +2,8 @@
 
 A minimal, keyboard-friendly flashcard app for learning vocabulary in foreign languages. Built with Next.js and styled with Tailwind CSS, it features a clean dark interface designed for distraction-free study sessions.
 
+<img width="1076" height="704" alt="Screenshot 2026-03-06 at 12 44 56 (1)" src="https://github.com/user-attachments/assets/edb6d672-7add-4968-98bf-a36fab12acd5" />
+
 ## Features
 
 - **Multi-language support** — Switch between Spanish 🇪🇸, German 🇩🇪, and French 🇫🇷 wordlists with a single click.
