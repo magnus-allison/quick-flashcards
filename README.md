@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quick Flashcards
+
+A minimal, keyboard-friendly flashcard app for learning vocabulary in foreign languages. Built with Next.js and styled with Tailwind CSS, it features a clean dark interface designed for distraction-free study sessions.
+
+## Features
+
+- **Multi-language support** — Switch between Spanish 🇪🇸, German 🇩🇪, and French 🇫🇷 wordlists with a single click.
+- **Categorised wordlists** — Words are organised into topic-based categories (fruits, colours, clothes, meats, kitchen items, etc.) accessible from a sidebar.
+- **All Cards mode** — Combine every wordlist for a given language into one deck and study them together.
+- **Favourites** — Star individual cards to build a personal review list. Favourites are persisted in localStorage (compressed with pako/zlib).
+- **Shuffle** — Randomise card order within any wordlist, the combined deck, or favourites.
+- **Hints** — Enable a hint step that reveals the first and last letter of the answer before showing the full translation.
+- **Foreign-first mode** — Flip the card direction so the foreign word is shown first and you recall the English translation.
+- **Keyboard navigation** — Use `←` / `→` to move between cards and `Space` / `Enter` to flip.
+- **Progress bar** — Visual indicator showing how far through the current deck you are.
+- **Dark monospace UI** — A developer-friendly aesthetic with a dark theme and monospace typography.
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) 16
+- [React](https://react.dev/) 19
+- [Tailwind CSS](https://tailwindcss.com/) 4
+- [Phosphor Icons](https://phosphoricons.com/)
+- [pako](https://github.com/nodeca/pako) for favourite compression
+- [Vercel Analytics](https://vercel.com/analytics)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Adding Wordlists
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a new `.ts` file under `wordlist/<language_code>/` exporting an array of word objects:
 
-## Learn More
+```ts
+export const fruits = [
+	{ image: '', english: 'Apple', spanish: 'La manzana' },
+	{ image: '', english: 'Banana', spanish: 'El plátano' }
+	// ...
+];
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app auto-discovers all wordlist files at build time — no manual imports needed.
